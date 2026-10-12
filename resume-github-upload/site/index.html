@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Mass Mailer</title>
+    <!-- SheetJS for local preview logic if needed, though backend does parsing too -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --border: #e5e7eb;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            display: grid;
+            gap: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button.btn-success {
+            background-color: var(--success);
+            width: 100%;
+            font-size: 1.2rem;
+            padding: 15px;
+        }
+
+        button.btn-danger {
+            background-color: var(--error);
+            width: 100%;
+            font-size: 1.2rem;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        button.btn-success:disabled {
+            background-color: #93c5fd;
+            cursor: not-allowed;
+        }
+
+        /* Preview Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background-color: #f8fafc;
+        }
+
+        /* Email Preview */
+        .email-preview {
+            background: #f9fafb;
+            padding: 15px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .highlight {
+            background-color: #fde047;
+            color: #854d0e;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        /* Logs */
+        .logs-box {
+            background: #1e293b;
+            color: #f1f5f9;
+            padding: 15px;
+            border-radius: 6px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .log-success {
+            color: var(--success);
+        }
+
+        .log-error {
+            color: var(--error);
+        }
+
+        /* Progress */
+        .progress-container {
+            margin: 20px 0;
+            background: #e2e8f0;
+            border-radius: 999px;
+            height: 20px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--success);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        #file-names {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* Entrance + hover motion */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            animation: fadeUp 0.5s ease backwards;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.12);
+        }
+
+        .container > :nth-child(2) { animation-delay: 0.05s; }
+        .container > :nth-child(3) { animation-delay: 0.1s; }
+        .container > :nth-child(4) { animation-delay: 0.15s; }
+        .container > :nth-child(5) { animation-delay: 0.2s; }
+        .container > :nth-child(6) { animation-delay: 0.25s; }
+        .container > :nth-child(7) { animation-delay: 0.3s; }
+
+        button {
+            transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+        }
+
+        button:not(:disabled):hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 12px -4px rgba(0, 0, 0, 0.25);
+        }
+
+        button:not(:disabled):active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+
+        .stat {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            animation: fadeUp 0.5s ease backwards;
+        }
+
+        .stat::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 4px;
+            width: 100%;
+            background: var(--accent, var(--primary));
+        }
+
+        .stat:nth-child(2) { animation-delay: 0.08s; }
+        .stat:nth-child(3) { animation-delay: 0.16s; }
+        .stat:nth-child(4) { animation-delay: 0.24s; }
+
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--accent, var(--primary));
+            font-variant-numeric: tabular-nums;
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .stat.bump .stat-value {
+            animation: bump 0.4s ease;
+        }
+
+        @keyframes bump {
+            50% { transform: scale(1.18); }
+        }
+
+        .stat.live::after {
+            content: '';
+            position: absolute;
+            right: 10px;
+            top: 12px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 1.2s ease-out infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+            100% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        }
+
+        /* Animated progress bar */
+        .progress-bar {
+            background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.25) 25%, transparent 25%, transparent 50%,
+                    rgba(255, 255, 255, 0.25) 50%, rgba(255, 255, 255, 0.25) 75%, transparent 75%);
+            background-size: 28px 28px;
+            transition: width 0.6s ease;
+        }
+
+        .progress-bar.active {
+            animation: stripes 0.8s linear infinite;
+        }
+
+        @keyframes stripes {
+            to { background-position: 28px 0; }
+        }
+
+        .log-skip {
+            opacity: 0.55;
+        }
+
+        .logs-box div {
+            animation: fadeUp 0.25s ease backwards;
+        }
+
+        @media (max-width: 700px) {
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { animation: none !important; transition: none !important; }
+        }
+
+        .back-link {
+            justify-self: start;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: transform 0.2s ease;
+            animation: slideInLeft 0.5s ease backwards;
+        }
+
+        .back-link:hover { transform: translateX(-4px); }
+
+        /* ---- Sliding motion ---- */
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes growLine {
+            from { transform: scaleX(0); }
+            to { transform: scaleX(1); }
+        }
+
+        @keyframes shimmer {
+            to { transform: translateX(100%); }
+        }
+
+        h1 { animation: slideDown 0.6s cubic-bezier(.2, .8, .2, 1) backwards; }
+
+        /* Cards slide in from alternating sides */
+        .container > .card { animation-name: slideInLeft; animation-duration: 0.6s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); animation-fill-mode: backwards; }
+        .container > .card:nth-of-type(even) { animation-name: slideInRight; }
+
+        /* Section title underline slides out */
+        .section-title { position: relative; border-bottom-color: var(--border); }
+        .section-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -2px;
+            height: 2px;
+            width: 64px;
+            background: var(--primary);
+            transform-origin: left;
+            animation: growLine 0.7s 0.3s ease both;
+        }
+
+        /* Progress bar glides and shimmers */
+        .progress-container { position: relative; }
+        .progress-bar { position: relative; overflow: hidden; transition: width 0.8s cubic-bezier(.2, .8, .2, 1); }
+        .progress-bar.active::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+            transform: translateX(-100%);
+            animation: shimmer 1.4s ease-in-out infinite;
+        }
+
+        /* Preview table rows slide in one after another */
+        #previewTable tbody tr { animation: slideInLeft 0.4s ease backwards; animation-delay: calc(var(--i, 0) * 60ms); }
+        #previewTable tbody tr:hover { background: #f8fafc; }
+        #previewTable tbody td { transition: padding-left 0.2s ease; }
+        #previewTable tbody tr:hover td:first-child { padding-left: 14px; }
+
+        /* Logs slide in from the left */
+        .logs-box div { animation: slideInLeft 0.3s ease backwards; }
+
+        /* Inputs: slide-in focus ring */
+        input[type="number"], input[type="file"] { transition: border-color 0.2s, box-shadow 0.2s; }
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+        }
+
+        /* Upload confirmations slide in */
+        #file-names div { animation: slideInLeft 0.35s ease backwards; color: var(--success); font-weight: 500; }
+
+        /* Buttons: light sweeps across on hover */
+        button { position: relative; overflow: hidden; }
+        button::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -60%;
+            width: 40%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+            transform: skewX(-20deg);
+            transition: left 0.5s ease;
+        }
+        button:not(:disabled):hover::after { left: 130%; }
+
+        /* Toast notifications slide in from the right */
+        #toasts {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: grid;
+            gap: 10px;
+            z-index: 1000;
+            max-width: min(360px, calc(100vw - 40px));
+        }
+
+        .toast {
+            background: var(--card-bg);
+            border-left: 5px solid var(--primary);
+            border-radius: 8px;
+            padding: 12px 16px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.18);
+            animation: slideInRight 0.4s cubic-bezier(.2, .8, .2, 1) backwards;
+            transition: transform 0.4s ease, opacity 0.4s ease;
+        }
+
+        .toast.success { border-left-color: var(--success); }
+        .toast.error { border-left-color: var(--error); }
+        .toast.leaving { transform: translateX(120%); opacity: 0; }
+
+        /* ---- 3D banner ---- */
+        .banner {
+            display: grid;
+            grid-template-columns: 1fr minmax(240px, 340px);
+            align-items: center;
+            gap: 10px;
+            animation: slideDown 0.6s cubic-bezier(.2, .8, .2, 1) backwards;
+        }
+
+        .banner h1 { text-align: left; margin: 0 0 6px; animation: none; }
+        .banner p { margin: 0; color: #6b7280; font-size: 1.05rem; }
+
+        .banner-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 14px;
+            padding: 6px 14px;
+            border-radius: 999px;
+            background: var(--card-bg);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .banner-status i {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #9ca3af;
+        }
+
+        .banner-status.live i {
+            background: var(--success);
+            animation: pulse 1.2s ease-out infinite;
+        }
+
+        #bannerScene {
+            width: 100%;
+            height: 200px;
+            display: block;
+        }
+
+        @media (max-width: 700px) {
+            .banner { grid-template-columns: 1fr; }
+            #bannerScene { height: 150px; }
+        }
+
+        /* ---- Dashboard sidebar ---- */
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 900px) 340px;
+            gap: 20px;
+            max-width: 1280px;
+            margin: 0 auto;
+            align-items: start;
+        }
+
+        .layout .container { margin: 0; max-width: none; }
+
+        .sidebar {
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            animation: slideInRight 0.6s cubic-bezier(.2, .8, .2, 1) backwards;
+        }
+
+        .side-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.25rem;
+            font-weight: 600;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #d1d5db;
+        }
+
+        .live-dot.on {
+            background: var(--success);
+            animation: pulse 1.2s ease-out infinite;
+        }
+
+        .side-title {
+            margin: 22px 0 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #6b7280;
+        }
+
+        /* delivery-rate ring */
+        .ring-wrap { position: relative; width: 150px; height: 150px; margin: 0 auto 18px; }
+        .ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .ring-track { fill: none; stroke: #e5e7eb; stroke-width: 10; }
+        .ring-fill {
+            fill: none;
+            stroke: var(--success);
+            stroke-width: 10;
+            stroke-linecap: round;
+            stroke-dasharray: 326.7;
+            stroke-dashoffset: 326.7;
+            transition: stroke-dashoffset 1.2s cubic-bezier(.2, .8, .2, 1);
+        }
+        .ring-center {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .ring-value { font-size: 1.9rem; font-weight: 700; color: var(--success); font-variant-numeric: tabular-nums; }
+        .ring-label { font-size: 0.75rem; color: #6b7280; }
+
+        .sidebar .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+        .sidebar .stat { padding: 12px 8px; }
+        .sidebar .stat-value { font-size: 1.7rem; }
+        .sidebar .stat.wide { grid-column: span 2; }
+
+        /* 7-day bar chart */
+        .bars { display: flex; align-items: flex-end; gap: 8px; height: 110px; }
+        .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+        .bar-num { font-size: 0.7rem; color: #6b7280; margin-bottom: 3px; font-variant-numeric: tabular-nums; }
+        .bar {
+            width: 100%;
+            height: 0;
+            min-height: 3px;
+            border-radius: 4px 4px 0 0;
+            background: #93c5fd;
+            transition: height 0.9s cubic-bezier(.2, .8, .2, 1);
+            transition-delay: calc(var(--i, 0) * 70ms);
+        }
+        .bar-col.today .bar { background: var(--primary); }
+        .bar-day { font-size: 0.7rem; color: #6b7280; margin-top: 4px; }
+
+        /* recent activity */
+        .recent { list-style: none; margin: 0; padding: 0; }
+        .recent li {
+            display: grid;
+            grid-template-columns: 10px 1fr auto;
+            gap: 10px;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+            animation: slideInRight 0.4s ease backwards;
+            animation-delay: calc(var(--i, 0) * 60ms);
+        }
+        .recent li.empty { display: block; color: #9ca3af; text-align: center; border: none; }
+        .recent .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+        .recent .dot.INVALID { background: var(--error); }
+        .recent .dot.FAILED { background: #f59e0b; }
+        .recent .who { min-width: 0; }
+        .recent .who b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+        .recent .who small { color: #6b7280; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .recent .ago { color: #9ca3af; font-size: 0.75rem; white-space: nowrap; }
+
+        @media (max-width: 1150px) {
+            .layout { grid-template-columns: minmax(0, 1fr); max-width: 900px; }
+            .sidebar { position: static; max-height: none; }
+        }
+
+        /* ---- Stepper ---- */
+        .stepper { display: flex; align-items: center; padding: 4px 10px; animation: slideInLeft 0.6s ease backwards; }
+        .step { display: flex; align-items: center; gap: 10px; font-weight: 600; color: #9ca3af; transition: color 0.3s; }
+        .step .num {
+            width: 34px; height: 34px; border-radius: 50%;
+            display: grid; place-items: center;
+            background: var(--card-bg); border: 2px solid var(--border);
+            transition: all 0.35s ease;
+        }
+        .step.active { color: var(--text); }
+        .step.active .num { background: var(--primary); border-color: var(--primary); color: #fff; animation: pulseBlue 1.8s ease-out infinite; }
+        .step.done { color: var(--success); }
+        .step.done .num { background: var(--success); border-color: var(--success); color: #fff; }
+        .step-line { flex: 1; height: 3px; background: var(--border); margin: 0 14px; border-radius: 3px; overflow: hidden; }
+        .step-line i { display: block; height: 100%; width: 0; background: var(--success); transition: width 0.8s cubic-bezier(.2, .8, .2, 1); }
+        .step-line.fill i { width: 100%; }
+        @keyframes pulseBlue {
+            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.5); }
+            70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+        }
+
+        /* ---- Locked cards ---- */
+        .card.locked { opacity: 0.5; filter: grayscale(0.4); pointer-events: none; position: relative; }
+        .card.locked::before {
+            content: attr(data-lock);
+            position: absolute; top: 16px; right: 18px;
+            font-size: 0.8rem; color: #6b7280;
+            background: var(--bg); padding: 4px 12px; border-radius: 999px;
+        }
+        .card { transition: opacity 0.4s ease, filter 0.4s ease, transform 0.2s ease, box-shadow 0.2s ease; }
+
+        /* ---- Drop zones ---- */
+        .dropzone {
+            border: 2px dashed #cbd5e1; border-radius: 10px; padding: 22px 16px;
+            text-align: center; cursor: pointer; background: #f9fafb;
+            transition: border-color 0.2s, background 0.2s, transform 0.2s;
+        }
+        .dropzone:hover, .dropzone:focus-visible { border-color: var(--primary); background: #eff6ff; outline: none; }
+        .dropzone.drag { border-color: var(--primary); background: #dbeafe; transform: scale(1.02); }
+        .dropzone.has-file { border-style: solid; border-color: var(--success); background: #f0fdf4; cursor: default; }
+        .dz-icon { font-size: 2rem; margin-bottom: 6px; }
+        .dz-empty small, .dz-meta { display: block; color: #6b7280; font-size: 0.85rem; }
+        .dz-empty b { display: block; }
+        .dz-file { display: flex; align-items: center; gap: 12px; text-align: left; animation: slideInLeft 0.35s ease backwards; }
+        .dz-file .dz-icon { margin: 0; }
+        .dz-info { flex: 1; min-width: 0; }
+        .dz-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .dz-replace { color: var(--primary); font-size: 0.85rem; font-weight: 500; cursor: pointer; }
+        .dz-replace:hover { text-decoration: underline; }
+        .dz-file[hidden], .dz-empty[hidden] { display: none; }
+
+        .chips-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; min-height: 28px; }
+        .chip {
+            padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 500;
+            background: #eff6ff; color: var(--primary-hover); animation: popIn 0.35s ease backwards;
+        }
+        .chip.ok { background: #ecfdf5; color: #047857; }
+        .chip.warn { background: #fef3c7; color: #854d0e; }
+        .chip.bad { background: #fee2e2; color: #b91c1c; }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+
+        /* ---- Review toolbar / table ---- */
+        .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; }
+        .toolbar input[type="text"] { flex: 1; min-width: 180px; }
+        .toolbar input[type="text"]:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18); }
+        .filter-tabs { display: flex; gap: 6px; }
+        button.ghost, button.ghost:hover:not(:disabled) {
+            background: #f3f4f6; color: var(--text); padding: 7px 14px; font-size: 0.85rem; border-radius: 999px;
+        }
+        button.ghost:hover:not(:disabled) { background: #e5e7eb; }
+        button.ghost.active, button.ghost.active:hover:not(:disabled) { background: var(--primary); color: #fff; }
+        button.ghost span { opacity: 0.7; margin-left: 4px; }
+        button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+        .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+        .pill.READY { background: #ecfdf5; color: #047857; }
+        .pill.DUPLICATE { background: #fef3c7; color: #854d0e; }
+        .pill.INVALID { background: #fee2e2; color: #b91c1c; }
+        tr.skipped td:not(:last-child) { opacity: 0.55; }
+        .pager { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 0.85rem; color: #6b7280; }
+        .pager div { display: flex; gap: 6px; }
+
+        /* ---- Confirm modal ---- */
+        .modal {
+            position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55);
+            display: grid; place-items: center; z-index: 1100;
+            opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+        }
+        .modal.open { opacity: 1; pointer-events: auto; }
+        .modal-box {
+            background: var(--card-bg); border-radius: 12px; padding: 26px; width: min(440px, 90vw);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+            transform: translateY(26px) scale(0.96); transition: transform 0.35s cubic-bezier(.2, .8, .2, 1);
+        }
+        .modal.open .modal-box { transform: none; }
+        .modal-box h3 { margin: 0 0 10px; font-size: 1.3rem; }
+        .modal-box p { margin: 0 0 22px; color: #4b5563; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+        .modal-actions button { padding: 10px 22px; }
+
+        @media (max-width: 700px) { .step .lbl { display: none; } }
+    </style>
+</head>
+
+<body>
+    <div id="toasts" aria-live="polite"></div>
+    <div class="layout">
+    <div class="container">
+        <a href="home.html" class="back-link">← Home</a>
+        <div class="banner">
+            <div>
+                <h1>📧 Resume Mass Mailer</h1>
+                <p>Upload your contacts and resume, then send to everyone in one go.</p>
+                <div class="banner-status" id="bannerStatus"><i></i><span>Ready to send</span></div>
+            </div>
+            <canvas id="bannerScene" aria-hidden="true"></canvas>
+        </div>
+
+        <!-- Stepper -->
+        <div class="stepper" id="stepper">
+            <div class="step active" data-step="1"><span class="num">1</span><span class="lbl">Upload</span></div>
+            <div class="step-line"><i></i></div>
+            <div class="step" data-step="2"><span class="num">2</span><span class="lbl">Review</span></div>
+            <div class="step-line"><i></i></div>
+            <div class="step" data-step="3"><span class="num">3</span><span class="lbl">Send</span></div>
+        </div>
+
+        <!-- File Upload -->
+        <div class="card" id="step-upload">
+            <div class="section-title">1. Upload</div>
+            <div class="grid-2">
+                <div>
+                    <label>Contacts file</label>
+                <div class="dropzone" id="dzContacts" tabindex="0" role="button" aria-label="Drop contacts here">
+                    <input type="file" id="contactFile" accept=".xlsx, .csv" hidden>
+                    <div class="dz-empty">
+                        <div class="dz-icon">📇</div>
+                        <b>Drop contacts here</b>
+                        <small>or click to browse · .xlsx, .csv</small>
+                    </div>
+                    <div class="dz-file" hidden>
+                        <div class="dz-icon">✅</div>
+                        <div class="dz-info"><b class="dz-name"></b><small class="dz-meta"></small></div>
+                        <span class="dz-replace">Replace</span>
+                    </div>
+                </div>
+                    <div class="chips-row" id="contactSummary"></div>
+                </div>
+                <div>
+                    <label>Resume (PDF)</label>
+                <div class="dropzone" id="dzResume" tabindex="0" role="button" aria-label="Drop your resume here">
+                    <input type="file" id="resumeFile" accept=".pdf" hidden>
+                    <div class="dz-empty">
+                        <div class="dz-icon">📄</div>
+                        <b>Drop your resume here</b>
+                        <small>or click to browse · .pdf</small>
+                    </div>
+                    <div class="dz-file" hidden>
+                        <div class="dz-icon">✅</div>
+                        <div class="dz-info"><b class="dz-name"></b><small class="dz-meta"></small></div>
+                        <span class="dz-replace">Replace</span>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Review -->
+        <div class="card locked" id="step-review" data-lock="Upload contacts to unlock">
+            <div class="section-title">2. Review contacts <span id="contactCount"
+                    style="font-weight:normal; font-size: 0.9em">(0 contacts)</span></div>
+            <div class="toolbar">
+                <input type="text" id="searchBox" placeholder="Search company or email...">
+                <div class="filter-tabs" id="filterTabs">
+                    <button type="button" class="ghost active" data-f="ALL">All<span>0</span></button>
+                    <button type="button" class="ghost" data-f="READY">Ready<span>0</span></button>
+                    <button type="button" class="ghost" data-f="SKIP">Skipped<span>0</span></button>
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table id="previewTable">
+                    <thead>
+                        <tr><th>Company</th><th>Email</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="3" style="text-align:center; color:#888;">Upload a contacts file to review it here</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="pager">
+                <span id="pageInfo"></span>
+                <div>
+                    <button type="button" class="ghost" id="prevPg" disabled>‹ Prev</button>
+                    <button type="button" class="ghost" id="nextPg" disabled>Next ›</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Email Template -->
+        <div class="card locked" id="step-template" data-lock="Upload contacts to unlock">
+            <div class="section-title">Email preview</div>
+            <div class="email-preview">Dear Hiring Team,
+
+                I'm a Software Engineer with one year of experience building backend services, RESTful APIs, and
+                full-stack applications. I am writing to apply for a Software Engineer position at
+                <span class="highlight">{{COMPANY_NAME}}</span>.
+
+                Technical background:
+                • Languages: Python, Java, C++, JavaScript/TypeScript, SQL
+                • Backend: FastAPI, Node.js, Express, REST API design
+                • Frontend: React.js, React Native, Expo
+                • Databases & Cloud: PostgreSQL, MongoDB, AWS (EC2, RDS), CI/CD, Git
+
+                I've worked on production systems end-to-end, including a full-suite CRM platform, an analytics
+                dashboard for Kochi Metro's ridership and payment data, and a backend for a consumer mobile app with
+                live tracking and ticketing. I also have experience with SQL/schema optimization and AWS deployment
+                management.
+
+                My resume is attached for your consideration. I would appreciate the opportunity to discuss how my
+                skills and experience align with your Software Engineer requirements.
+
+                Best regards,
+                Diya Dathan
+                8921920068 | diyaadathan@gmail.com</div>
+        </div>
+
+        <!-- Send Controls -->
+        <div class="card locked" id="step-send" data-lock="Upload contacts and resume to unlock">
+            <div class="section-title">3. Send</div>
+            <div class="form-group" style="max-width: 200px;">
+                <label>Delay (seconds)</label>
+                <input type="number" id="delaySeconds" value="3" min="1">
+            </div>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div style="text-align: center; margin-bottom: 10px;" id="statusText">Ready</div>
+
+            <button class="btn-success" id="sendBtn" onclick="startSending()">Start Sending Emails</button>
+            <button class="btn-danger" id="stopBtn" onclick="stopSending()" style="display:none;">Stop Sending</button>
+        </div>
+
+        <!-- Logs -->
+        <div class="card">
+            <div class="section-title">6. Logs</div>
+            <div class="logs-box" id="logsBox">
+                <div>Waiting for action...</div>
+            </div>
+        </div>
+    </div>
+    <aside class="sidebar" id="dashboard">
+        <div class="side-head">
+            <span>📊 Dashboard</span>
+            <span class="live-dot" id="liveDot" title="Live while sending"></span>
+        </div>
+
+        <div class="ring-wrap">
+            <svg viewBox="0 0 120 120" class="ring" aria-hidden="true">
+                <circle cx="60" cy="60" r="52" class="ring-track"></circle>
+                <circle cx="60" cy="60" r="52" class="ring-fill" id="ringFill"></circle>
+            </svg>
+            <div class="ring-center">
+                <div class="ring-value" id="ringValue">0%</div>
+                <div class="ring-label">Delivery rate</div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat" id="stat-total">
+                <div class="stat-value" data-count="0">0</div>
+                <div class="stat-label">Total sent</div>
+            </div>
+            <div class="stat" id="stat-today" style="--accent: var(--success)">
+                <div class="stat-value" data-count="0">0</div>
+                <div class="stat-label">Sent today</div>
+            </div>
+            <div class="stat" id="stat-run" style="--accent: var(--success)">
+                <div class="stat-value" data-count="0">0</div>
+                <div class="stat-label">This run</div>
+            </div>
+            <div class="stat" id="stat-skipped" style="--accent: #854d0e">
+                <div class="stat-value" data-count="0">0</div>
+                <div class="stat-label">Skipped</div>
+            </div>
+            <div class="stat wide" id="stat-left" style="--accent: var(--primary-hover)">
+                <div class="stat-value" data-count="0">0</div>
+                <div class="stat-label">Remaining this run</div>
+            </div>
+        </div>
+
+        <div class="side-title">Last 7 days</div>
+        <div class="bars" id="bars"></div>
+
+        <div class="side-title">Recent activity</div>
+        <ul class="recent" id="recent">
+            <li class="empty">No activity yet</li>
+        </ul>
+    </aside>
+    </div>
+
+    <div class="modal" id="confirmModal" aria-hidden="true">
+        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="cmTitle">
+            <h3 id="cmTitle"></h3>
+            <p id="cmBody"></p>
+            <div class="modal-actions">
+                <button type="button" class="ghost" id="cmCancel">Cancel</button>
+                <button type="button" id="cmOk">Yes, send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8081/api';
+        // SMTP is now configured in backend
+        let hasContacts = false;
+        let hasResume = false;
+        let pollerId = null;
+        let renderedLogs = 0;
+
+        // ---- 3D banner: envelope + paper planes ----
+        let sendingActive = false;
+        let launchPlane = () => {};
+
+        function initBanner() {
+            const cv = document.getElementById('bannerScene');
+            if (!window.THREE) { cv.style.display = 'none'; return; }
+            const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 50);
+            camera.position.set(0, 0.6, 9);
+            camera.lookAt(0.8, 0.3, 0);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            sun.position.set(3, 5, 6);
+            scene.add(sun);
+
+            // Envelope: body + back flap
+            const env = new THREE.Group();
+            const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
+            const blue = new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.5, side: THREE.DoubleSide });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.6, 0.2), white);
+            const flapShape = new THREE.Shape();
+            flapShape.moveTo(-1.2, 0.8); flapShape.lineTo(1.2, 0.8); flapShape.lineTo(0, -0.1); flapShape.closePath();
+            const flap = new THREE.Mesh(new THREE.ShapeGeometry(flapShape), blue);
+            flap.position.z = 0.11;
+            const seal = new THREE.Mesh(new THREE.CircleGeometry(0.16, 24),
+                new THREE.MeshStandardMaterial({ color: 0xffffff }));
+            seal.position.set(0, -0.08, 0.12);
+            env.add(body, flap, seal);
+            env.position.set(-2.3, 0, 0);
+            scene.add(env);
+
+            // Paper plane geometry (a simple dart)
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+                0, 0, 0.7, -0.45, 0.1, -0.5, 0, -0.08, -0.3,
+                0, 0, 0.7, 0, -0.08, -0.3, 0.45, 0.1, -0.5
+            ]), 3));
+            geo.computeVertexNormals();
+            const planeMats = [
+                new THREE.MeshStandardMaterial({ color: 0x2563eb, side: THREE.DoubleSide, flatShading: true }),
+                new THREE.MeshStandardMaterial({ color: 0x60a5fa, side: THREE.DoubleSide, flatShading: true })
+            ];
+
+            const planes = [];
+            launchPlane = () => {
+                if (planes.length > 14) return;
+                const m = new THREE.Mesh(geo, planeMats[planes.length % 2]);
+                m.userData = { u: 0, speed: 0.35 + Math.random() * 0.15, dy: (Math.random() - 0.3) * 0.8, dz: Math.random() * 0.6 };
+                m.position.copy(env.position);
+                scene.add(m);
+                planes.push(m);
+                flap.rotation.x = 0.5; // envelope flap flutters on each launch
+            };
+
+            function resize() {
+                const w = cv.clientWidth, h = cv.clientHeight;
+                renderer.setSize(w, h, false);
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            const clock = new THREE.Clock();
+            let idleTimer = 0;
+            const tmp = new THREE.Vector3();
+
+            (function loop() {
+                requestAnimationFrame(loop);
+                const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+
+                if (!reduce) {
+                    env.position.y = Math.sin(t * 1.3) * 0.15;
+                    env.rotation.y = Math.sin(t * 0.7) * 0.35;
+                    env.rotation.z = Math.sin(t * 0.9) * 0.06;
+                }
+                flap.rotation.x += (0 - flap.rotation.x) * 0.15;
+
+                // idle planes now and then; a steady stream while sending
+                idleTimer += dt;
+                if (idleTimer > (sendingActive ? 0.5 : 3.2)) { idleTimer = 0; launchPlane(); }
+
+                for (let i = planes.length - 1; i >= 0; i--) {
+                    const m = planes[i], d = m.userData;
+                    d.u += dt * d.speed;
+                    const u = d.u;
+                    const pos = (uu) => tmp.set(
+                        env.position.x + uu * 7.5,
+                        env.position.y + 0.2 + Math.sin(uu * Math.PI * 0.9) * 1.1 + d.dy * uu,
+                        d.dz * Math.sin(uu * 4));
+                    m.position.copy(pos(u));
+                    const ahead = pos(u + 0.02).clone();
+                    m.lookAt(ahead);
+                    m.rotation.z += Math.sin(u * 14) * 0.25; // little wobble
+                    m.scale.setScalar(Math.max(0.2, 1 - u * 0.6));
+                    if (u >= 1) { scene.remove(m); planes.splice(i, 1); }
+                }
+                renderer.render(scene, camera);
+            })();
+        }
+        initBanner();
+
+        function setBannerStatus(text, live) {
+            sendingActive = live;
+            document.getElementById('liveDot').classList.toggle('on', live);
+            const el = document.getElementById('bannerStatus');
+            el.classList.toggle('live', live);
+            el.querySelector('span').innerText = text;
+        }
+        let lastSentSeen = 0;
+
+
+        // Sliding notification (replaces blocking alert dialogs)
+        function toast(message, type = 'info') {
+            const box = document.getElementById('toasts');
+            const el = document.createElement('div');
+            el.className = `toast ${type}`;
+            el.innerText = message;
+            box.appendChild(el);
+            setTimeout(() => {
+                el.classList.add('leaving');
+                setTimeout(() => el.remove(), 400);
+            }, 4500);
+        }
+
+        // Animated number: counts from the currently shown value to the new one
+        function setStat(id, value) {
+            const el = document.querySelector(`#${id} .stat-value`);
+            const from = parseInt(el.dataset.count, 10) || 0;
+            if (from === value) return;
+            el.dataset.count = value;
+
+            const box = document.getElementById(id);
+            box.classList.remove('bump');
+            void box.offsetWidth; // restart the animation
+            box.classList.add('bump');
+
+            const start = performance.now();
+            const duration = 600;
+            function tick(now) {
+                const t = Math.min((now - start) / duration, 1);
+                const eased = 1 - Math.pow(1 - t, 3);
+                el.innerText = Math.round(from + (value - from) * eased).toLocaleString();
+                if (t < 1) requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        }
+
+        const RING_C = 326.7;
+
+        function timeAgo(utc) {
+            const secs = Math.max(0, (Date.now() - new Date(utc.replace(' ', 'T') + 'Z').getTime()) / 1000);
+            if (secs < 60) return 'just now';
+            if (secs < 3600) return Math.floor(secs / 60) + 'm ago';
+            if (secs < 86400) return Math.floor(secs / 3600) + 'h ago';
+            return Math.floor(secs / 86400) + 'd ago';
+        }
+
+        function esc(t) {
+            return String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function renderDashboard(d) {
+            const t = d.totals || {};
+            const sent = t.SENT || 0, bad = (t.INVALID || 0) + (t.FAILED || 0);
+            setStat('stat-total', sent);
+            setStat('stat-today', d.today || 0);
+
+            // delivery rate ring
+            const rate = sent + bad > 0 ? sent / (sent + bad) : 0;
+            document.getElementById('ringFill').style.strokeDashoffset = RING_C * (1 - rate);
+            document.getElementById('ringValue').innerText = Math.round(rate * 100) + '%';
+
+            // 7-day bars
+            const max = Math.max(1, ...d.daily.map(x => x.count));
+            const bars = document.getElementById('bars');
+            bars.innerHTML = d.daily.map((x, i) => {
+                const day = new Date(x.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short' });
+                return `<div class="bar-col${i === d.daily.length - 1 ? ' today' : ''}">
+                    <span class="bar-num">${x.count}</span>
+                    <div class="bar" style="--i:${i}" data-h="${Math.round((x.count / max) * 100)}"></div>
+                    <span class="bar-day">${day}</span></div>`;
+            }).join('');
+            requestAnimationFrame(() => requestAnimationFrame(() =>
+                bars.querySelectorAll('.bar').forEach(b => { b.style.height = b.dataset.h + '%'; })));
+
+            // recent activity
+            const list = document.getElementById('recent');
+            list.innerHTML = d.recent.length ? d.recent.map((r, i) => `
+                <li style="--i:${i}">
+                    <span class="dot ${esc(r.status)}"></span>
+                    <span class="who"><b>${esc(r.email)}</b><small>${esc(r.company || r.status)}</small></span>
+                    <span class="ago">${timeAgo(r.at)}</span>
+                </li>`).join('') : '<li class="empty">No activity yet</li>';
+        }
+
+        async function loadTotals() {
+            try {
+                const res = await fetch(`${API_URL}/dashboard`);
+                renderDashboard(await res.json());
+            } catch (e) {
+                console.error("Could not load dashboard", e);
+            }
+        }
+
+        loadTotals();
+        setInterval(() => { if (!sendingActive) loadTotals(); }, 15000);
+
+
+
+        // ---- State ----
+        let allContacts = [];
+        let filterMode = 'ALL';
+        let query = '';
+        let page = 0;
+        const PAGE_SIZE = 10;
+        let readyCount = 0;
+        let sending = false;
+        let started = false;
+
+        const $ = id => document.getElementById(id);
+
+        function fmtSize(b) {
+            return b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
+        }
+
+        function fmtDuration(sec) {
+            if (sec < 60) return sec + ' sec';
+            if (sec < 3600) return Math.round(sec / 60) + ' min';
+            return Math.floor(sec / 3600) + ' h ' + Math.round((sec % 3600) / 60) + ' min';
+        }
+
+        // ---- Drop zones ----
+        function setupDropzone(zoneId, inputId, onFile) {
+            const zone = $(zoneId), input = $(inputId);
+            zone.addEventListener('click', () => input.click());
+            zone.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
+            });
+            ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => {
+                e.preventDefault(); zone.classList.add('drag');
+            }));
+            ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => {
+                e.preventDefault(); zone.classList.remove('drag');
+            }));
+            zone.addEventListener('drop', e => {
+                if (e.dataTransfer.files.length) {
+                    input.files = e.dataTransfer.files;
+                    input.dispatchEvent(new Event('change'));
+                }
+            });
+            input.addEventListener('click', e => e.stopPropagation()); // don't re-trigger the zone
+            input.addEventListener('change', () => { if (input.files.length) onFile(input.files[0]); });
+        }
+
+        function showFile(zoneId, file) {
+            const zone = $(zoneId);
+            zone.classList.add('has-file');
+            zone.querySelector('.dz-empty').hidden = true;
+            const box = zone.querySelector('.dz-file');
+            box.hidden = false;
+            box.style.animation = 'none'; void box.offsetWidth; box.style.animation = '';
+            zone.querySelector('.dz-name').innerText = file.name;
+            zone.querySelector('.dz-meta').innerText = fmtSize(file.size);
+        }
+
+        function chip(text, cls) {
+            return `<span class="chip ${cls || ''}">${text}</span>`;
+        }
+
+        async function uploadContacts(file) {
+            const formData = new FormData();
+            formData.append("file", file);
+            try {
+                const res = await fetch(`${API_URL}/upload-contacts`, { method: 'POST', body: formData });
+                const data = await res.json();
+                if (!res.ok) { toast("Upload failed: " + JSON.stringify(data), "error"); return; }
+
+                if (data.count === 0) {
+                    toast("0 contacts were loaded. Check your file format (Column 1: Name, Column 2: Email).", "error");
+                    return;
+                }
+                showFile('dzContacts', file);
+                allContacts = data.contacts;
+                readyCount = data.summary.ready;
+                hasContacts = true;
+                filterMode = 'ALL'; query = ''; page = 0;
+                $('searchBox').value = '';
+                document.querySelectorAll('#filterTabs button').forEach(b => b.classList.toggle('active', b.dataset.f === 'ALL'));
+
+                $('contactSummary').innerHTML =
+                    chip(`${data.count} contacts`) +
+                    chip(`${data.summary.ready} ready`, 'ok') +
+                    (data.summary.duplicate ? chip(`${data.summary.duplicate} already sent`, 'warn') : '') +
+                    (data.summary.invalid ? chip(`${data.summary.invalid} invalid`, 'bad') : '');
+
+                setStat('stat-left', data.summary.ready);
+                renderTable();
+                setLocks();
+                toast(`${data.count} contacts loaded (${data.summary.ready} ready to send)`, 'success');
+            } catch (e) {
+                toast("Error uploading contacts: " + e.message, "error");
+            }
+        }
+
+        async function uploadResume(file) {
+            const formData = new FormData();
+            formData.append("file", file);
+            try {
+                const res = await fetch(`${API_URL}/upload-resume`, { method: 'POST', body: formData });
+                if (res.ok) {
+                    hasResume = true;
+                    showFile('dzResume', file);
+                    toast('Resume uploaded', 'success');
+                    setLocks();
+                } else {
+                    toast("Resume upload failed", "error");
+                }
+            } catch (e) {
+                toast("Error uploading resume: " + e.message, "error");
+            }
+        }
+
+        setupDropzone('dzContacts', 'contactFile', uploadContacts);
+        setupDropzone('dzResume', 'resumeFile', uploadResume);
+
+        // ---- Locks + stepper ----
+        function setLocks() {
+            $('step-review').classList.toggle('locked', !hasContacts);
+            $('step-template').classList.toggle('locked', !hasContacts);
+            $('step-send').classList.toggle('locked', !(hasContacts && hasResume));
+            updateSteps();
+            updateSendButton();
+        }
+
+        function updateSteps() {
+            const uploaded = hasContacts && hasResume;
+            const current = !uploaded ? 1 : (started ? 3 : 2);
+            const finished = started && !sending;
+            document.querySelectorAll('#stepper .step').forEach(el => {
+                const n = parseInt(el.dataset.step, 10);
+                const done = finished || n < current;
+                el.classList.toggle('done', done);
+                el.classList.toggle('active', !done && n === current);
+                el.querySelector('.num').innerText = done ? '✓' : n;
+            });
+            const lines = document.querySelectorAll('#stepper .step-line');
+            lines[0].classList.toggle('fill', uploaded);
+            lines[1].classList.toggle('fill', finished || started);
+        }
+
+        function updateSendButton() {
+            if (sending) return;
+            const btn = $('sendBtn');
+            btn.disabled = !(hasContacts && hasResume) || readyCount === 0;
+            btn.innerText = readyCount > 0 ? `Send to ${readyCount} contact${readyCount === 1 ? '' : 's'}` : 'Start Sending Emails';
+        }
+
+        // ---- Review table ----
+        const STATUS_LABEL = { READY: 'Ready', DUPLICATE: 'Already sent', INVALID: 'Invalid' };
+
+        function filtered() {
+            const q = query.trim().toLowerCase();
+            return allContacts.filter(c => {
+                if (filterMode === 'READY' && c.status !== 'READY') return false;
+                if (filterMode === 'SKIP' && c.status === 'READY') return false;
+                return !q || (c.company || '').toLowerCase().includes(q) || c.email.includes(q);
+            });
+        }
+
+        function renderTable() {
+            const rows = filtered();
+            const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+            page = Math.min(page, pages - 1);
+            const slice = rows.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+
+            $('contactCount').innerText = `(${allContacts.length} contacts)`;
+            const tabs = document.querySelectorAll('#filterTabs button span');
+            tabs[0].innerText = allContacts.length;
+            tabs[1].innerText = readyCount;
+            tabs[2].innerText = allContacts.length - readyCount;
+
+            const tbody = document.querySelector('#previewTable tbody');
+            tbody.innerHTML = slice.length ? slice.map((c, i) => `
+                <tr style="--i:${i}" class="${c.status === 'READY' ? '' : 'skipped'}">
+                    <td>${esc(c.company) || '<span style="color:#9ca3af">—</span>'}</td>
+                    <td>${esc(c.email)}</td>
+                    <td><span class="pill ${c.status}" title="${esc(c.reason)}">${STATUS_LABEL[c.status]}</span></td>
+                </tr>`).join('')
+                : '<tr><td colspan="3" style="text-align:center; color:#888;">No contacts match</td></tr>';
+
+            const from = rows.length ? page * PAGE_SIZE + 1 : 0;
+            $('pageInfo').innerText = `Showing ${from}–${Math.min((page + 1) * PAGE_SIZE, rows.length)} of ${rows.length}`;
+            $('prevPg').disabled = page === 0;
+            $('nextPg').disabled = page >= pages - 1;
+        }
+
+        $('searchBox').addEventListener('input', e => { query = e.target.value; page = 0; renderTable(); });
+        $('filterTabs').addEventListener('click', e => {
+            const b = e.target.closest('button');
+            if (!b) return;
+            filterMode = b.dataset.f; page = 0;
+            document.querySelectorAll('#filterTabs button').forEach(x => x.classList.toggle('active', x === b));
+            renderTable();
+        });
+        $('prevPg').addEventListener('click', () => { page--; renderTable(); });
+        $('nextPg').addEventListener('click', () => { page++; renderTable(); });
+
+        // ---- Confirm dialog ----
+        let modalOk = null;
+        function openModal(onOk) {
+            modalOk = onOk;
+            $('confirmModal').classList.add('open');
+            $('cmOk').focus();
+        }
+        function closeModal() { $('confirmModal').classList.remove('open'); modalOk = null; }
+        $('cmCancel').addEventListener('click', closeModal);
+        $('confirmModal').addEventListener('click', e => { if (e.target.id === 'confirmModal') closeModal(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+        $('cmOk').addEventListener('click', () => { const fn = modalOk; closeModal(); if (fn) fn(); });
+
+        function startSending() {
+            if (!hasContacts) return toast("Please upload a Contacts file first.", "error");
+            if (!hasResume) return toast("Please upload a Resume PDF first.", "error");
+            if (sending) return;
+            if (readyCount === 0) return toast("Nothing to send: every contact is already sent or invalid.", "error");
+
+            const delay = parseInt($('delaySeconds').value, 10) || 3;
+            const skipped = allContacts.length - readyCount;
+            $('cmTitle').innerText = `Send to ${readyCount} contact${readyCount === 1 ? '' : 's'}?`;
+            $('cmBody').innerHTML = `${skipped} will be skipped (already sent or invalid). ` +
+                `Estimated time: about <b>${fmtDuration(readyCount * delay)}</b> at ${delay}s between emails.`;
+            openModal(doStartSending);
+        }
+
+        async function doStartSending() {
+            const delay = document.getElementById('delaySeconds').value;
+
+            // Config check removed
+            if (!hasContacts) return toast("Please upload a Contacts file first.", "error");
+            if (!hasResume) return toast("Please upload a Resume PDF first.", "error");
+
+            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('sendBtn').innerText = "Sending in progress...";
+
+            try {
+                const res = await fetch(`${API_URL}/send-emails`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ delay: parseInt(delay) })
+                });
+
+                if (res.ok) {
+                    document.getElementById('stopBtn').style.display = 'block';
+                    sending = true; started = true; updateSteps();
+                    document.getElementById('stat-run').classList.add('live');
+                    lastSentSeen = 0;
+                    setBannerStatus('Sending emails...', true);
+                    document.getElementById('progressBar').classList.add('active');
+                    pollerId = setInterval(pollStatus, 1000);
+                } else {
+                    toast("Failed to start: " + await res.text(), "error");
+                    document.getElementById('sendBtn').disabled = false;
+                }
+            } catch (e) {
+                toast("Error: " + e.message, "error");
+                document.getElementById('sendBtn').disabled = false;
+            }
+        }
+
+        async function stopSending() {
+            document.getElementById('stopBtn').disabled = true;
+            try {
+                await fetch(`${API_URL}/stop-sending`, { method: 'POST' });
+            } catch (e) {
+                toast("Error: " + e.message, "error");
+            }
+        }
+
+        async function pollStatus() {
+            try {
+                const res = await fetch(`${API_URL}/status`);
+                const data = await res.json();
+
+                if (data.status === 'Idle' && data.total > 0) { // Heuristic for completion or stop
+                    clearInterval(pollerId);
+                    document.getElementById('sendBtn').innerText = data.sent >= data.total ? "Sending Completed" : "Sending Stopped";
+                    document.getElementById('stopBtn').style.display = 'none';
+                    document.getElementById('stopBtn').disabled = false;
+                    document.getElementById('stat-run').classList.remove('live');
+                    setBannerStatus(data.sent >= data.total ? 'All done' : 'Stopped', false);
+                    sending = false; updateSteps();
+                    toast(`Finished: ${data.sent} sent, ${data.skipped || 0} skipped`, 'success');
+                    document.getElementById('progressBar').classList.remove('active');
+                }
+
+                // Update Progress (skipped contacts count as handled)
+                const skipped = data.skipped || 0;
+                const handled = data.sent + skipped;
+                const pct = data.total > 0 ? (handled / data.total) * 100 : 0;
+                document.getElementById('progressBar').style.width = pct + '%';
+                const left = Math.max(data.total - handled, 0) * (parseInt($('delaySeconds').value, 10) || 3);
+                document.getElementById('statusText').innerText =
+                    `Sent ${data.sent} / ${data.total} emails, ${skipped} skipped` +
+                    (data.status === 'Idle' || left === 0 ? '' : ` · about ${fmtDuration(left)} left`);
+
+                for (let i = lastSentSeen; i < Math.min(data.sent, lastSentSeen + 4); i++) launchPlane();
+                lastSentSeen = data.sent;
+                setStat('stat-run', data.sent);
+                setStat('stat-skipped', skipped);
+                setStat('stat-left', Math.max(data.total - handled, 0));
+                loadTotals();
+
+                // Update Logs: append only new lines so earlier ones don't re-animate
+                const logsBox = document.getElementById('logsBox');
+                if (data.logs.length < renderedLogs) renderedLogs = 0; // a new run reset the log
+                if (renderedLogs === 0) logsBox.innerHTML = '';
+                data.logs.slice(renderedLogs).forEach(log => {
+                    const div = document.createElement('div');
+                    div.innerText = log;
+                    if (log.startsWith('✓')) div.classList.add('log-success');
+                    if (log.startsWith('✗')) div.classList.add('log-error');
+                    if (log.startsWith('- Skipped')) div.classList.add('log-skip');
+                    logsBox.appendChild(div);
+                });
+                renderedLogs = data.logs.length;
+                logsBox.scrollTo({ top: logsBox.scrollHeight, behavior: 'smooth' });
+
+            } catch (e) {
+                console.error("Polling error", e);
+            }
+        }
+
+        setLocks(); // initial locked state, after all state is declared
+    </script>
+</body>
+
+</html>

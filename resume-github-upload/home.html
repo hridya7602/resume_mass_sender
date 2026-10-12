@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Mass Mailer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #60a5fa;
+            --bg-top: #111a33;
+            --bg-bottom: #05070f;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            height: 100%;
+            overflow: hidden;
+            background: radial-gradient(ellipse at 70% 40%, var(--bg-top), var(--bg-bottom) 70%);
+            color: var(--text);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        /* 3D scene fills the right side; text sits on the left, so they never overlap */
+        #scene {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 62%;
+            height: 100%;
+            display: block;
+            touch-action: manipulation;
+        }
+
+        #scene.hover { cursor: pointer; }
+
+        .brand {
+            position: fixed;
+            top: 28px;
+            left: 6vw;
+            font-weight: 700;
+            font-size: 1.1rem;
+            letter-spacing: 0.02em;
+            animation: slideInLeft 0.8s cubic-bezier(.2, .8, .2, 1) backwards;
+        }
+
+        .brand span { color: var(--primary-light); }
+
+        .hero {
+            position: fixed;
+            left: 6vw;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 38vw;
+            max-width: 560px;
+            pointer-events: none;
+        }
+
+        .hero h1 {
+            margin: 0 0 16px;
+            font-size: clamp(2.2rem, 4.4vw, 4rem);
+            line-height: 1.05;
+            letter-spacing: -0.03em;
+            animation: slideInLeft 0.9s 0.15s cubic-bezier(.2, .8, .2, 1) backwards;
+        }
+
+        .hero h1 em {
+            font-style: normal;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .hero p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 1.1rem;
+            line-height: 1.6;
+            animation: slideInLeft 0.9s 0.3s cubic-bezier(.2, .8, .2, 1) backwards;
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 22px;
+            animation: slideInLeft 0.9s 0.45s cubic-bezier(.2, .8, .2, 1) backwards;
+        }
+
+        .chips span {
+            padding: 6px 14px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 999px;
+            font-size: 0.85rem;
+            color: var(--muted);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .cta {
+            pointer-events: auto;
+            display: inline-block;
+            margin-top: 28px;
+            padding: 14px 32px;
+            border-radius: 999px;
+            background: var(--primary);
+            color: #fff;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.05rem;
+            position: relative;
+            overflow: hidden;
+            animation: slideInLeft 0.9s 0.6s cubic-bezier(.2, .8, .2, 1) backwards, pulse 2.4s 1.6s infinite;
+            transition: transform 0.2s;
+        }
+
+        .cta::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -60%;
+            width: 40%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transform: skewX(-20deg);
+            transition: left 0.5s ease;
+        }
+
+        .cta:hover { transform: translateY(-2px); }
+        .cta:hover::after { left: 130%; }
+
+        .hint {
+            position: fixed;
+            right: 3vw;
+            bottom: 28px;
+            color: var(--muted);
+            font-size: 0.9rem;
+            animation: slideInLeft 0.9s 0.9s ease backwards;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.55); }
+            70% { box-shadow: 0 0 0 16px rgba(37, 99, 235, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+        }
+
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-36px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Fades to white as we fly into the paper, matching the app's white cards */
+        #flash {
+            position: fixed;
+            inset: 0;
+            background: #fff;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.7s ease-in;
+        }
+
+        #flash.on { opacity: 1; }
+
+        /* Narrow screens: scene on top, text below */
+        @media (max-width: 900px) {
+            #scene { width: 100%; height: 56%; }
+            .hero {
+                top: auto;
+                bottom: 5vh;
+                transform: none;
+                width: auto;
+                right: 6vw;
+                max-width: none;
+            }
+            .hero h1 { font-size: 2rem; }
+            .hero p, .chips, .hint { display: none; }
+            .cta { margin-top: 16px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { animation: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="scene" aria-label="3D pen writing a letter on paper. Click to open the resume sender."></canvas>
+
+    <div class="brand">📧 Resume <span>Mass Mailer</span></div>
+
+    <div class="hero">
+        <h1>Unemployed.<br><em>But make it scalable.</em></h1>
+        <p>Mass-mailing my resume to every company on earth until someone says yes. It never emails the same one twice, because even desperation has standards.</p>
+        <div class="chips">
+            <span>✓ No double begging</span>
+            <span>✓ Fake emails rejected</span>
+            <span>✓ Watch the hope live</span>
+        </div>
+        <a class="cta" href="index.html" id="cta">Send the Hope →</a>
+    </div>
+
+    <div class="hint">Click the paper. Manifest a job ✍️</div>
+
+    <div id="flash"></div>
+
+    <script>
+        const TARGET = 'index.html';
+        const canvas = document.getElementById('scene');
+        const flash = document.getElementById('flash');
+
+        function go() {
+            flash.classList.add('on');
+            setTimeout(() => { window.location.href = TARGET; }, 650);
+        }
+        document.getElementById('cta').addEventListener('click', e => { e.preventDefault(); go(); });
+
+        // If the CDN or WebGL is unavailable the button still works
+        if (!window.THREE) {
+            canvas.style.display = 'none';
+        } else {
+            init();
+        }
+
+        function init() {
+            const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+            const camHome = new THREE.Vector3(0, 0.4, 11);
+            camera.position.copy(camHome);
+
+            // ---- Lights ----
+            scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+            const key = new THREE.DirectionalLight(0xffffff, 0.85);
+            key.position.set(3, 6, 8);
+            key.castShadow = true;
+            key.shadow.mapSize.set(1024, 1024);
+            scene.add(key);
+            const rim = new THREE.PointLight(0x2563eb, 1.6, 30);
+            rim.position.set(-5, 2, 4);
+            scene.add(rim);
+
+            const world = new THREE.Group();
+            scene.add(world);
+
+            // Glow disc behind the paper
+            const gc = document.createElement('canvas'); gc.width = gc.height = 256;
+            const gx = gc.getContext('2d');
+            const gg = gx.createRadialGradient(128, 128, 10, 128, 128, 128);
+            gg.addColorStop(0, 'rgba(37,99,235,0.55)'); gg.addColorStop(1, 'rgba(37,99,235,0)');
+            gx.fillStyle = gg; gx.fillRect(0, 0, 256, 256);
+            const glow = new THREE.Mesh(
+                new THREE.PlaneGeometry(10, 10),
+                new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(gc), transparent: true, depthWrite: false }));
+            glow.position.z = -2;
+            world.add(glow);
+
+            // Drifting particles for depth
+            const N_P = 140;
+            const pPos = new Float32Array(N_P * 3);
+            for (let i = 0; i < N_P; i++) {
+                pPos[i * 3] = (Math.random() - 0.5) * 12;
+                pPos[i * 3 + 1] = (Math.random() - 0.5) * 9;
+                pPos[i * 3 + 2] = -3 + Math.random() * 5;
+            }
+            const pGeo = new THREE.BufferGeometry();
+            pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+            const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({
+                color: 0x60a5fa, size: 0.05, transparent: true, opacity: 0.7, depthWrite: false }));
+            world.add(particles);
+
+            // ---- Paper, drawn on a canvas so the pen can really write on it ----
+            const PW = 3, PD = 4; // paper width / depth in scene units
+            const TW = 768, TH = 1024; // texture size in px
+            const mk = () => { const c = document.createElement('canvas'); c.width = TW; c.height = TH; return c; };
+            const baseCv = mk(), inkCv = mk(), texCv = mk();
+            const baseCtx = baseCv.getContext('2d'), inkCtx = inkCv.getContext('2d'), ctx = texCv.getContext('2d');
+            const paperTex = new THREE.CanvasTexture(texCv);
+            paperTex.anisotropy = 8;
+
+            const LINES = [
+                "Dear Hiring Team,",
+                "I code, I cry, I deploy.",
+                "Sometimes all at once.",
+                "I work well under pressure",
+                "(rent is due Friday).",
+                "Please hire me. Mom keeps asking.",
+                "With regards,",
+                "The Software Engineer"
+            ];
+            const FONT = '"Bradley Hand","Snell Roundhand","Segoe Script","Comic Sans MS",cursive';
+            const X0 = 130, MAXW = 590, TOP = 190, GAP = 100;
+            const baseline = i => TOP + i * GAP;
+            const fontSizes = [], widths = [];
+            LINES.forEach(t => {
+                ctx.font = `50px ${FONT}`;
+                const w = ctx.measureText(t).width;
+                const fs = Math.min(50, 50 * MAXW / w);
+                ctx.font = `${fs}px ${FONT}`;
+                fontSizes.push(fs); widths.push(ctx.measureText(t).width);
+            });
+
+            // ruled blank sheet
+            baseCtx.fillStyle = '#ffffff'; baseCtx.fillRect(0, 0, TW, TH);
+            baseCtx.strokeStyle = '#d6e2f5'; baseCtx.lineWidth = 2;
+            for (let y = TOP + 16; y < TH - 40; y += GAP) {
+                baseCtx.beginPath(); baseCtx.moveTo(60, y); baseCtx.lineTo(TW - 60, y); baseCtx.stroke();
+            }
+            baseCtx.strokeStyle = '#f3b4b4';
+            baseCtx.beginPath(); baseCtx.moveTo(100, 0); baseCtx.lineTo(100, TH); baseCtx.stroke();
+
+            function drawLine(c, i, reveal) {
+                c.save();
+                if (reveal !== undefined) {
+                    c.beginPath(); c.rect(X0 - 20, baseline(i) - 80, reveal + 20, 130); c.clip();
+                }
+                c.fillStyle = '#1e3a8a';
+                c.font = `${fontSizes[i]}px ${FONT}`;
+                c.fillText(LINES[i], X0, baseline(i));
+                c.restore();
+            }
+
+            function compose(activeLine, reveal) {
+                ctx.drawImage(baseCv, 0, 0);
+                ctx.drawImage(inkCv, 0, 0);
+                if (activeLine !== null) drawLine(ctx, activeLine, reveal);
+                paperTex.needsUpdate = true;
+            }
+            compose(null);
+
+            const edge = new THREE.MeshStandardMaterial({ color: 0xe8eefb });
+            const topMat = new THREE.MeshStandardMaterial({ map: paperTex, roughness: 0.9 });
+
+            // tilt: sheet stands up facing the camera, leaning slightly back
+            const tilt = new THREE.Group();
+            tilt.rotation.x = 1.12;
+            world.add(tilt);
+
+            const pivot = new THREE.Group(); // moves when the finished sheet is "sent"
+            tilt.add(pivot);
+
+            // two sheets underneath for thickness
+            [[-0.1, -0.07, -3], [0.08, -0.13, 2.5]].forEach(([dx, dy, rot], i) => {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(PW, 0.03, PD),
+                    new THREE.MeshStandardMaterial({ color: i ? 0xf1f5fb : 0xdfe7f6, roughness: 0.95 }));
+                m.position.set(dx, dy, 0); m.rotation.y = THREE.MathUtils.degToRad(rot);
+                m.receiveShadow = m.castShadow = true;
+                tilt.add(m);
+            });
+            const paper = new THREE.Mesh(new THREE.BoxGeometry(PW, 0.04, PD),
+                [edge, edge, topMat, edge, edge, edge]);
+            paper.receiveShadow = paper.castShadow = true;
+            pivot.add(paper);
+
+            // ---- Pen: tip at local origin, body along +Y ----
+            const pen = new THREE.Group();
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x0b1226, metalness: 0.6, roughness: 0.25 });
+            const accent = new THREE.MeshStandardMaterial({ color: 0x2563eb, metalness: 0.5, roughness: 0.25 });
+            const metal = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, metalness: 0.95, roughness: 0.15 });
+            const parts = [
+                [new THREE.ConeGeometry(0.055, 0.32, 24), metal, 0.16, (m) => { m.rotation.x = Math.PI; }],
+                [new THREE.CylinderGeometry(0.1, 0.055, 0.55, 24), accent, 0.595],
+                [new THREE.CylinderGeometry(0.105, 0.105, 0.05, 24), metal, 0.89],
+                [new THREE.CylinderGeometry(0.105, 0.105, 1.9, 24), bodyMat, 1.86],
+                [new THREE.CylinderGeometry(0.105, 0.09, 0.14, 24), accent, 2.88],
+                [new THREE.BoxGeometry(0.03, 0.85, 0.05), metal, 2.4, (m) => { m.position.z = 0.125; }]
+            ];
+            parts.forEach(([geo, mat, y, fn]) => {
+                const m = new THREE.Mesh(geo, mat); m.position.y = y; m.castShadow = true;
+                if (fn) fn(m);
+                pen.add(m);
+            });
+            // lean up-and-right across the page, like a right-handed writer
+            pen.rotation.set(-0.5, 0, -1.1);
+            pen.scale.setScalar(0.95);
+            tilt.add(pen);
+
+            // ---- Writing animation ----
+            const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+            const SPEED = 330; // px of handwriting per second
+            const st = { phase: 'move', line: 0, r: 0, t: 0, tip: { x: X0, y: baseline(0) }, from: { x: X0, y: baseline(0) }, lift: 0.6 };
+            st.to = { x: X0, y: baseline(0) };
+
+            function placePen(x, y, lift) {
+                pen.position.set((x / TW - 0.5) * PW, 0.04 + lift, ((y - 14) / TH - 0.5) * PD);
+            }
+            placePen(X0, baseline(0), 0.6);
+
+            function step(dt) {
+                switch (st.phase) {
+                    case 'write': {
+                        st.r += SPEED * dt;
+                        if (st.r >= widths[st.line]) {
+                            st.r = widths[st.line];
+                            drawLine(inkCtx, st.line);
+                            compose(null);
+                            st.line++;
+                            st.from = { ...st.tip };
+                            if (st.line >= LINES.length) { st.phase = 'hold'; st.t = 0; }
+                            else { st.phase = 'move'; st.t = 0; st.to = { x: X0, y: baseline(st.line) }; }
+                            break;
+                        }
+                        st.tip = { x: X0 + st.r, y: baseline(st.line) + Math.sin(st.r * 0.13) * 6 };
+                        st.lift = 0;
+                        compose(st.line, st.r);
+                        break;
+                    }
+                    case 'move': { // lift, glide to the start of the next line, lower
+                        st.t = Math.min(st.t + dt / 0.45, 1);
+                        const k = ease(st.t);
+                        st.tip = { x: st.from.x + (st.to.x - st.from.x) * k, y: st.from.y + (st.to.y - st.from.y) * k };
+                        st.lift = Math.sin(k * Math.PI) * 0.4;
+                        if (st.t >= 1) { st.phase = 'write'; st.r = 0; st.tip = { ...st.to }; }
+                        break;
+                    }
+                    case 'hold': { // page finished, pen lifts away
+                        st.t += dt;
+                        st.lift = Math.min(st.t / 0.4, 1) * 0.7;
+                        if (st.t > 1.2) { st.phase = 'send'; st.t = 0; }
+                        break;
+                    }
+                    case 'send': { // sheet flies off like a sent letter
+                        st.t = Math.min(st.t + dt / 0.9, 1);
+                        const k = st.t * st.t;
+                        pivot.position.set(k * 4.5, k * 0, -k * 6);
+                        pivot.rotation.set(0, k * 0.6, -k * 0.6);
+                        pivot.scale.setScalar(1 - k * 0.5);
+                        if (st.t >= 1) {
+                            inkCtx.clearRect(0, 0, TW, TH);
+                            compose(null);
+                            st.line = 0; st.t = 0; st.phase = 'arrive';
+                            st.tip = { x: X0, y: baseline(0) };
+                        }
+                        break;
+                    }
+                    case 'arrive': { // fresh sheet slides in from below
+                        st.t = Math.min(st.t + dt / 0.9, 1);
+                        const k = 1 - Math.pow(1 - st.t, 3);
+                        pivot.position.set(0, 0, 0);
+                        pivot.rotation.set(0, 0, 0);
+                        pivot.scale.setScalar(1);
+                        pivot.position.z = (1 - k) * 7; // slides up the page toward the viewer's view
+                        pivot.position.x = 0;
+                        if (st.t >= 1) {
+                            st.phase = 'move'; st.t = 0;
+                            st.from = { ...st.tip }; st.to = { x: X0, y: baseline(0) };
+                        }
+                        break;
+                    }
+                }
+                placePen(st.tip.x, st.tip.y, st.lift);
+            }
+
+            // ---- Interaction ----
+            const mouse = new THREE.Vector2(0, 0);
+            const target = new THREE.Vector2(0, 0);
+            const ray = new THREE.Raycaster();
+            let hovering = false, entering = false, enterStart = 0;
+
+            function setPointer(e) {
+                const r = canvas.getBoundingClientRect();
+                mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+            }
+            const hit = () => { ray.setFromCamera(mouse, camera); return ray.intersectObjects(tilt.children, true).length > 0; };
+
+            canvas.addEventListener('pointermove', e => {
+                setPointer(e);
+                target.copy(mouse);
+                hovering = hit();
+                canvas.classList.toggle('hover', hovering);
+            });
+            canvas.addEventListener('pointerleave', () => { target.set(0, 0); hovering = false; canvas.classList.remove('hover'); });
+            canvas.addEventListener('pointerup', e => {
+                setPointer(e);
+                if (hit() && !entering) {
+                    entering = true; enterStart = performance.now();
+                    flash.classList.add('on');
+                    setTimeout(() => { window.location.href = TARGET; }, 700);
+                }
+            });
+
+            function resize() {
+                const w = canvas.clientWidth, h = canvas.clientHeight;
+                renderer.setSize(w, h, false);
+                camera.aspect = w / h;
+                // pull back on narrow/short canvases so the sheet always fits
+                camHome.z = 11 * Math.max(1, 0.95 / camera.aspect);
+                camera.updateProjectionMatrix();
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            // ---- Loop ----
+            const clock = new THREE.Clock();
+            const origin = new THREE.Vector3(0, 0, 0);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                const dt = Math.min(clock.getDelta(), 0.05);
+                const t = clock.elapsedTime;
+
+                step(dt);
+
+                // gentle float + mouse parallax tilt
+                world.position.y = reduce ? 0 : Math.sin(t * 1.1) * 0.12;
+                world.rotation.y += (target.x * 0.45 + Math.sin(t * 0.5) * 0.1 - world.rotation.y) * 0.05;
+                world.rotation.x += (-target.y * 0.2 - world.rotation.x) * 0.05;
+                world.scale.setScalar(THREE.MathUtils.lerp(world.scale.x, hovering ? 1.05 : 1, 0.08));
+                rim.intensity = THREE.MathUtils.lerp(rim.intensity, hovering ? 3.2 : 1.6, 0.1);
+
+                // particles drift upward and wrap around
+                const p = pGeo.attributes.position;
+                for (let i = 0; i < N_P; i++) {
+                    let y = p.getY(i) + dt * (0.15 + (i % 5) * 0.05);
+                    if (y > 4.5) y = -4.5;
+                    p.setY(i, y);
+                }
+                p.needsUpdate = true;
+
+                if (entering) { // fly the camera into the paper
+                    const k = Math.min((performance.now() - enterStart) / 700, 1);
+                    camera.position.lerpVectors(camHome, new THREE.Vector3(0, 0.2, 4.5), k * k);
+                } else {
+                    camera.position.copy(camHome);
+                }
+                camera.lookAt(origin);
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+    </script>
+</body>
+
+</html>
